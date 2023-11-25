@@ -214,6 +214,8 @@ final class SqlNullCheckedResultSetMockRef implements Ref {
  */
 public class SqlNullCheckedResultSetTest extends BaseTestCase {
 
+    private static ResultSet rs;
+
     private static void assertArrayEquals(final byte[] expected, final byte[] actual) {
         if (expected == actual) {
             return;
@@ -227,7 +229,6 @@ public class SqlNullCheckedResultSetTest extends BaseTestCase {
             assertEquals("Array not equal at index " + i, expectedItem, actualItem);
         }
     }
-
     private SqlNullCheckedResultSet rs2;
 
     /**
@@ -239,7 +240,8 @@ public class SqlNullCheckedResultSetTest extends BaseTestCase {
 
         rs2 = new SqlNullCheckedResultSet(ProxyFactory.instance().createResultSet(new SqlNullUncheckedMockResultSet()));
 
-        rs = ProxyFactory.instance().createResultSet(rs2); // Override superclass field
+        setResultSet(ProxyFactory.instance().createResultSet(rs2)); // Override superclass field
+        rs = getResultSet();
     }
 
     /**

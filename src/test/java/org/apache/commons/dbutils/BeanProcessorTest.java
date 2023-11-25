@@ -17,6 +17,7 @@
 package org.apache.commons.dbutils;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertNotEquals;
 
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
@@ -156,7 +157,7 @@ public class BeanProcessorTest extends BaseTestCase {
     }
 
     private static final class TestNoGetter {
-        public String testField;
+        private String testField;
 
         /**
          * Add setter to trigger JavaBeans to populate a PropertyDescriptor
@@ -169,7 +170,7 @@ public class BeanProcessorTest extends BaseTestCase {
     }
 
     private static final class TestWrongSetter {
-        public Integer testField;
+        private Integer testField;
 
         public Integer getTestField() {
             return testField;
@@ -186,7 +187,7 @@ public class BeanProcessorTest extends BaseTestCase {
         }
     }
 
-    private static final BeanProcessor beanProc = new BeanProcessor();
+    private static final BeanProcessor BEAN_PROCESSOR = new BeanProcessor();
 
     public void testCheckAnnotationOnMissingReadMethod() throws Exception {
         final String[] colNames = { "testField" };
@@ -195,10 +196,10 @@ public class BeanProcessorTest extends BaseTestCase {
         final String testField = "first";
         final Object[][] rows = { new Object[] { testField } };
 
-        final ResultSet rs = MockResultSet.create(metaData, rows);
-        assertTrue(rs.next());
+        final ResultSet resultSet = MockResultSet.create(metaData, rows);
+        assertTrue(resultSet.next());
         TestNoGetter testCls = new TestNoGetter();
-        testCls = beanProc.populateBean(rs, testCls);
+        testCls = BEAN_PROCESSOR.populateBean(resultSet, testCls);
         assertEquals(testCls.testField, "first");
     }
 
@@ -210,103 +211,113 @@ public class BeanProcessorTest extends BaseTestCase {
      * @see <a href="https://issues.apache.org/jira/browse/DBUTILS-150">DBUTILS-150</a>
      */
     public void testIndexedPropertyDescriptor() throws Exception {
-        final String[] colNames = { "name", "things", "stuff" };
-        final ResultSetMetaData metaData = MockResultSetMetaData.create(colNames);
+        final String[] columnNames = {"name", "things", "stuff"};
+        final ResultSetMetaData metaData = MockResultSetMetaData.create(columnNames);
 
-        final String name = "first";
-        final List<String> things = Arrays.asList("1", "2", "3", "4");
-        final List<String> stuff = things;
-        final Object[][] rows = { new Object[] { name, things, stuff } };
+        final String nameHeader = "first";
+        final List<String> thingsRowValues = Arrays.asList("1", "2", "3", "4");
+        final List<String> stuffRowValues = thingsRowValues;
+        final Object[][] rows = {
+                new Object[] {nameHeader, thingsRowValues, stuffRowValues}
+        };
 
-        final ResultSet rs = MockResultSet.create(metaData, rows);
-        assertTrue(rs.next());
-        IndexedPropertyTestClass testCls = new IndexedPropertyTestClass();
-        testCls = beanProc.populateBean(rs, testCls);
-        assertEquals(name, testCls.getName());
-        assertArrayEquals(things.toArray(), testCls.getThings().toArray());
-        assertArrayEquals(stuff.toArray(), testCls.getStuff().toArray());
+        final ResultSet resultSet = MockResultSet.create(metaData, rows);
+        assertTrue(resultSet.next());
+        IndexedPropertyTestClass indexedPropertyTestClass = new IndexedPropertyTestClass();
+        indexedPropertyTestClass = BEAN_PROCESSOR.populateBean(resultSet, indexedPropertyTestClass);
+        assertEquals(nameHeader, indexedPropertyTestClass.getName());
+        assertArrayEquals(thingsRowValues.toArray(), indexedPropertyTestClass.getThings().toArray());
+        assertArrayEquals(stuffRowValues.toArray(), indexedPropertyTestClass.getStuff().toArray());
     }
 
     public void testMapColumnToAnnotationField() throws Exception {
         final String[] columnNames = { "test", "test", "three_" };
         final String[] columnLabels = { "one", "two", null };
-        final ResultSetMetaData rsmd = ProxyFactory.instance().createResultSetMetaData(new MockResultSetMetaData(columnNames, columnLabels));
+        final ResultSetMetaData resultSetMetaData = buildResultSetMetaData(columnNames, columnLabels);
         final PropertyDescriptor[] props = Introspector.getBeanInfo(MapColumnToAnnotationFieldBean.class).getPropertyDescriptors();
 
-        final int[] columns = beanProc.mapColumnsToProperties(rsmd, props);
+        final int[] columns = BEAN_PROCESSOR.mapColumnsToProperties(resultSetMetaData, props);
         for (int i = 1; i < columns.length; i++) {
-            assertTrue(columns[i] != BeanProcessor.PROPERTY_NOT_FOUND);
+            assertNotEquals(columns[i], BeanProcessor.PROPERTY_NOT_FOUND);
         }
     }
 
     public void testMapColumnToProperties() throws Exception {
         final String[] columnNames = { "test", "test", "three" };
         final String[] columnLabels = { "one", "two", null };
-        final ResultSetMetaData rsmd = ProxyFactory.instance().createResultSetMetaData(new MockResultSetMetaData(columnNames, columnLabels));
+        final ResultSetMetaData resultSetMetaData = buildResultSetMetaData(columnNames, columnLabels);
         final PropertyDescriptor[] props = Introspector.getBeanInfo(MapColumnToPropertiesBean.class).getPropertyDescriptors();
 
-        final int[] columns = beanProc.mapColumnsToProperties(rsmd, props);
+        final int[] columns = BEAN_PROCESSOR.mapColumnsToProperties(resultSetMetaData, props);
         for (int i = 1; i < columns.length; i++) {
-            assertTrue(columns[i] != BeanProcessor.PROPERTY_NOT_FOUND);
+            assertNotEquals(columns[i], BeanProcessor.PROPERTY_NOT_FOUND);
         }
     }
 
     public void testMapColumnToPropertiesWithOverrides() throws Exception {
         final Map<String, String> columnToPropertyOverrides = new HashMap<>();
         columnToPropertyOverrides.put("five", "four");
-        final BeanProcessor beanProc = new BeanProcessor(columnToPropertyOverrides);
+        final BeanProcessor beanProcessor = new BeanProcessor(columnToPropertyOverrides);
         final String[] columnNames = { "test", "test", "three", "five" };
         final String[] columnLabels = { "one", "two", null, null };
-        final ResultSetMetaData rsmd = ProxyFactory.instance().createResultSetMetaData(new MockResultSetMetaData(columnNames, columnLabels));
+        final ResultSetMetaData resultSetMetaData = buildResultSetMetaData(columnNames, columnLabels);
         final PropertyDescriptor[] props = Introspector.getBeanInfo(MapColumnToPropertiesBean.class).getPropertyDescriptors();
 
-        final int[] columns = beanProc.mapColumnsToProperties(rsmd, props);
+        final int[] columns = beanProcessor.mapColumnsToProperties(resultSetMetaData, props);
         for (int i = 1; i < columns.length; i++) {
-            assertTrue(columns[i] != BeanProcessor.PROPERTY_NOT_FOUND);
+            assertNotEquals(BeanProcessor.PROPERTY_NOT_FOUND, columns[i]);
         }
     }
 
     public void testProcessWithPopulateBean() throws SQLException {
-        TestBean b = new TestBean();
+        TestBean testBean = new TestBean();
 
-        assertTrue(this.rs.next());
-        b = beanProc.populateBean(this.rs, b);
-        assertEquals(13.0, b.getColumnProcessorDoubleTest(), 0);
-        assertEquals(b.getThree(), TestBean.Ordinal.THREE);
+        assertTrue(this.getResultSet().next());
+        testBean = BEAN_PROCESSOR.populateBean(this.getResultSet(), testBean);
+        assertEquals(13.0, testBean.getColumnProcessorDoubleTest(), 0);
+        assertEquals(testBean.getThree(), TestBean.Ordinal.THREE);
 
-        assertTrue(this.rs.next());
-        b = beanProc.populateBean(this.rs, b);
-        assertEquals(13.0, b.getColumnProcessorDoubleTest(), 0);
-        assertEquals(b.getThree(), TestBean.Ordinal.SIX);
+        assertTrue(this.getResultSet().next());
+        testBean = BEAN_PROCESSOR.populateBean(this.getResultSet(), testBean);
+        assertEquals(13.0, testBean.getColumnProcessorDoubleTest(), 0);
+        assertEquals(testBean.getThree(), TestBean.Ordinal.SIX);
 
-        assertFalse(this.rs.next());
+        assertFalse(getResultSet().next());
     }
 
     public void testProcessWithToBean() throws SQLException {
-        assertTrue(this.rs.next());
-        TestBean b = beanProc.toBean(this.rs, TestBean.class);
-        assertEquals(13.0, b.getColumnProcessorDoubleTest(), 0);
-        assertEquals(b.getThree(), TestBean.Ordinal.THREE);
+        assertTrue(this.getResultSet().next());
+        TestBean testBean = BEAN_PROCESSOR.toBean(this.getResultSet(), TestBean.class);
+        assertEquals(13.0, testBean.getColumnProcessorDoubleTest(), 0);
+        assertEquals(testBean.getThree(), TestBean.Ordinal.THREE);
 
-        assertTrue(this.rs.next());
-        b = beanProc.toBean(this.rs, TestBean.class);
-        assertEquals(13.0, b.getColumnProcessorDoubleTest(), 0);
-        assertEquals(b.getThree(), TestBean.Ordinal.SIX);
+        assertTrue(this.getResultSet().next());
+        testBean = BEAN_PROCESSOR.toBean(this.getResultSet(), TestBean.class);
+        assertEquals(13.0, testBean.getColumnProcessorDoubleTest(), 0);
+        assertEquals(testBean.getThree(), TestBean.Ordinal.SIX);
 
-        assertFalse(this.rs.next());
+        assertFalse(getResultSet().next());
     }
 
     public void testWrongSetterParamCount() throws Exception {
         final String[] colNames = { "testField" };
         final ResultSetMetaData metaData = MockResultSetMetaData.create(colNames);
 
-        final Integer testField = 1;
-        final Object[][] rows = { new Object[] { testField } };
+        final Integer testFieldRowValue = 1;
+        final Object[][] rows = {
+                new Object[] {testFieldRowValue}
+        };
 
-        final ResultSet rs = MockResultSet.create(metaData, rows);
-        assertTrue(rs.next());
-        TestWrongSetter testCls = new TestWrongSetter();
-        testCls = beanProc.populateBean(rs, testCls);
-        assertNull(testCls.testField);
+        final ResultSet resultSet = MockResultSet.create(metaData, rows);
+        assertTrue(resultSet.next());
+        TestWrongSetter testWrongSetter = new TestWrongSetter();
+        testWrongSetter = BEAN_PROCESSOR.populateBean(resultSet, testWrongSetter);
+        assertNull(testWrongSetter.testField);
+    }
+
+    private ResultSetMetaData buildResultSetMetaData(String[] columnNames, String[] columnLabels) {
+        ProxyFactory proxyFactory = ProxyFactory.instance();
+        MockResultSetMetaData mockResultSetMetaData = new MockResultSetMetaData(columnNames, columnLabels);
+        return proxyFactory.createResultSetMetaData(mockResultSetMetaData);
     }
 }

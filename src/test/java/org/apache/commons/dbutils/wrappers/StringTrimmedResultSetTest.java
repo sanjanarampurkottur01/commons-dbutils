@@ -28,20 +28,23 @@ import org.apache.commons.dbutils.ProxyFactory;
  */
 public class StringTrimmedResultSetTest extends BaseTestCase {
 
+    private final static int COLUMN_INDEX = 4;
+    private final static String EXPECTED_VALUE = "notInBean";
+
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        this.rs = StringTrimmedResultSet.wrap(this.rs);
+        this.setResultSet(StringTrimmedResultSet.wrap(this.getResultSet()));
     }
 
     public void testGetObject() throws SQLException {
-        this.rs.next();
-        assertEquals("notInBean", rs.getObject(4));
+        this.getResultSet().next();
+        assertEquals(EXPECTED_VALUE, this.getResultSet().getObject(COLUMN_INDEX));
     }
 
     public void testGetString() throws SQLException {
-        this.rs.next();
-        assertEquals("notInBean", rs.getString(4));
+        this.getResultSet().next();
+        assertEquals("notInBean", getResultSet().getObject(COLUMN_INDEX));
     }
 
     /**
@@ -52,18 +55,18 @@ public class StringTrimmedResultSetTest extends BaseTestCase {
     public void testMultipleWrappers() throws Exception {
         // Create a ResultSet with data
         final Object[][] rows = { { null } };
-        ResultSet rs = MockResultSet.create(metaData, rows);
+        ResultSet resultSet = MockResultSet.create(metaData, rows);
 
         // Wrap the ResultSet with a null checked version
-        final SqlNullCheckedResultSet ncrs = new SqlNullCheckedResultSet(rs);
+        final SqlNullCheckedResultSet ncrs = new SqlNullCheckedResultSet(resultSet);
         ncrs.setNullString("   trim this   ");
-        rs = ProxyFactory.instance().createResultSet(ncrs);
+        resultSet = ProxyFactory.instance().createResultSet(ncrs);
 
         // Wrap the wrapper with a string trimmed version
-        rs = StringTrimmedResultSet.wrap(rs);
+        resultSet = StringTrimmedResultSet.wrap(resultSet);
 
-        rs.next();
-        assertEquals("trim this", rs.getString(1));
+        resultSet.next();
+        assertEquals("trim this", resultSet.getString(1));
     }
 
 }

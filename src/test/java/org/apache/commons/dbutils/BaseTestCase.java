@@ -65,18 +65,30 @@ public class BaseTestCase extends TestCase {
     /**
      * The ResultSet all test methods will use.
      */
-    protected ResultSet rs;
+    private ResultSet rs;
 
     /**
      * A ResultSet with 0 rows.
      */
-    protected ResultSet emptyResultSet;
+    private ResultSet emptyResultSet;
 
     /**
      * Creates a freshly initialized ResultSet.
      */
     protected ResultSet createMockResultSet() {
         return MockResultSet.create(metaData, rows);
+    }
+
+    public ResultSet getEmptyResultSet() {
+        return this.emptyResultSet;
+    }
+
+    public ResultSet getResultSet() {
+        return this.rs;
+    }
+
+    public void setResultSet(ResultSet resultSet) {
+        this.rs = resultSet;
     }
 
     /**
